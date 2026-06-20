@@ -21,7 +21,7 @@ Tensai Swoofer/
 collect_cdn_files.bat
 launcher.cmd
 woof.ps1
-revert.cmd
+/revert.cmd
 \# read me.txt
 
 # But allow CDN binaries
