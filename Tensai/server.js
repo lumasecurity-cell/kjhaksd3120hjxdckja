@@ -370,6 +370,8 @@ app.all('*', (req, res) => {
   res.status(200).end();
 });
 
+if (!fs.existsSync(FILES_DIR)) fs.mkdirSync(FILES_DIR, { recursive: true });
+
 app.listen(PORT, () => {
   console.log(`Tensai server running on port ${PORT}`);
 });
