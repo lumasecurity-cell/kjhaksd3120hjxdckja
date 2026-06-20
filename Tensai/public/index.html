@@ -248,7 +248,7 @@
           </div>
           <div style="flex:1;min-width:100px;">
             <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Duration (days)</div>
-            <input type="number" id="keyDuration" placeholder="Days" value="30" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;">
+            <input type="text" id="keyDuration" placeholder="Days or 'lifetime'" value="30" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;">
           </div>
           <div style="flex:1;min-width:100px;">
             <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Count</div>
@@ -539,7 +539,7 @@ async function loadKeys() {
       return `<tr>
         <td class="key-code">${escHtml(k.code)}</td>
         <td>${escHtml(k.name)}</td>
-        <td>${k.duration}d</td>
+        <td>${k.duration === 'lifetime' ? '<span class="badge badge-purple">Lifetime</span>' : k.duration + 'd'}</td>
         <td>${k.claimedBy ? escHtml(k.claimedBy) : '<span style="color:var(--muted)">—</span>'}</td>
         <td>${k.hwid ? `<span class="badge badge-green">${escHtml(k.hwid.substr(0,16))}..</span>` : '<span class="badge badge-yellow">Pending</span>'}</td>
         <td style="font-size:12px;">${pnames}</td>
