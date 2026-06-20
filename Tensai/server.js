@@ -290,7 +290,7 @@ app.get('/api/keys', (req, res) => {
 });
 
 app.post('/api/keys', (req, res) => {
-  const { adminToken, name, duration } = req.body || {};
+  const { adminToken, name, duration, products } = req.body || {};
   if (adminToken !== ADMIN_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
   if (!name || !duration) return res.status(400).json({ error: 'Missing name or duration' });
 
@@ -304,7 +304,7 @@ app.post('/api/keys', (req, res) => {
     hwidLocked: true,
     hwid: null,
     claimedBy: null,
-    products: [],
+    products: Array.isArray(products) ? products : [],
     createdAt: new Date().toISOString()
   };
   data.keys.push(key);
@@ -313,7 +313,7 @@ app.post('/api/keys', (req, res) => {
 });
 
 app.post('/api/keys/bulk', (req, res) => {
-  const { adminToken, prefix, count, duration } = req.body || {};
+  const { adminToken, prefix, count, duration, products } = req.body || {};
   if (adminToken !== ADMIN_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
   if (!prefix || !count || !duration) return res.status(400).json({ error: 'Missing fields' });
 
@@ -329,7 +329,7 @@ app.post('/api/keys/bulk', (req, res) => {
       hwidLocked: true,
       hwid: null,
       claimedBy: null,
-      products: [],
+      products: Array.isArray(products) ? products : [],
       createdAt: new Date().toISOString()
     };
     data.keys.push(key);
@@ -358,6 +358,26 @@ app.post('/api/keys/:id/products', (req, res) => {
   key.products = productIds;
   saveData(data);
   res.json({ success: true, key });
+});
+
+app.get('/api/keys/raw', (req, res) => {
+  const { adminToken, claimed, product, duration } = req.query;
+  if (adminToken !== ADMIN_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
+
+  const data = loadData();
+  let keys = data.keys;
+
+  if (claimed === 'true') keys = keys.filter(k => k.claimedBy);
+  else if (claimed === 'false') keys = keys.filter(k => !k.claimedBy);
+
+  if (product) keys = keys.filter(k => k.products && k.products.includes(product));
+  if (duration) keys = keys.filter(k => String(k.duration) === duration);
+
+  const text = keys.map(k => k.code).join('\n');
+  const filename = `keys_${claimed === 'true' ? 'claimed' : 'unclaimed'}${product ? '_' + product : ''}${duration ? '_' + duration + 'd' : ''}.txt`;
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(text);
 });
 
 app.post('/api/keys/:id/unlink-hwid', (req, res) => {

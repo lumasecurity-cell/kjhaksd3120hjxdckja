@@ -256,10 +256,29 @@
           </div>
           <button class="admin-btn primary" id="genKeyBtn" style="height:40px;">Generate</button>
         </div>
+        <div id="genProductList" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"></div>
         <div style="font-size:12px;color:var(--muted);margin-top:6px;">Format: <strong style="font-family:monospace;color:var(--pink);">TSAI-XXXX-XXXX</strong> &mdash; enter Count=1 for single, &gt;1 for bulk</div>
       </div>
       <div class="admin-card">
         <h3>All Keys <span id="keysCount" style="font-weight:400;font-size:13px;color:var(--muted);"></span></h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+          <select id="filterProduct" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;min-width:140px;">
+            <option value="">All Products</option>
+          </select>
+          <select id="filterDuration" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;min-width:140px;">
+            <option value="">All Durations</option>
+            <option value="lifetime">Lifetime</option>
+            <option value="7">7 days</option>
+            <option value="14">14 days</option>
+            <option value="30">30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+            <option value="180">180 days</option>
+            <option value="365">365 days</option>
+          </select>
+          <button class="admin-btn primary small" onclick="exportRaw('false')">&#128196; Raw Unclaimed</button>
+          <button class="admin-btn primary small" onclick="exportRaw('true')">&#128196; Raw Claimed</button>
+        </div>
         <div style="overflow-x:auto;">
           <table class="key-table">
             <thead><tr>
@@ -529,13 +548,34 @@ async function loadAdminFiles() {
 async function loadKeys() {
   const at = localStorage.getItem(ADMIN_KEY);
   try {
-    const res = await fetch(`${API}/keys?adminToken=${encodeURIComponent(at)}`);
-    const d = await res.json();
+    const [kr, pr] = await Promise.all([
+      fetch(`${API}/keys?adminToken=${encodeURIComponent(at)}`).then(r => r.json()),
+      fetch(`${API}/products?adminToken=${encodeURIComponent(at)}`).then(r => r.json())
+    ]);
+    window._products = pr.products || [];
+
+    // Populate product filter dropdown
+    const prodFilter = document.getElementById('filterProduct');
+    const curVal = prodFilter.value;
+    prodFilter.innerHTML = '<option value="">All Products</option>' + window._products.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+    prodFilter.value = curVal;
+
+    // Populate generate product checkboxes
+    const genList = document.getElementById('genProductList');
+    genList.innerHTML = window._products.map(p => `<label style="display:flex;align-items:center;gap:4px;font-size:13px;color:var(--muted);cursor:pointer;"><input type="checkbox" class="gen-prod-cb" value="${p.id}" style="accent-color:var(--pink);width:14px;height:14px;cursor:pointer;"> ${escHtml(p.name)}</label>`).join('');
+
+    const filterProd = document.getElementById('filterProduct').value;
+    const filterDur = document.getElementById('filterDuration').value;
+
+    let keys = kr.keys || [];
+    if (filterProd) keys = keys.filter(k => k.products && k.products.includes(filterProd));
+    if (filterDur) keys = keys.filter(k => String(k.duration) === filterDur);
+
     const tbody = document.getElementById('keysBody');
-    document.getElementById('keysCount').textContent = d.keys ? '(' + d.keys.length + ')' : '';
-    if (!d.keys || !d.keys.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No keys</td></tr>'; return; }
-    tbody.innerHTML = d.keys.map(k => {
-      const pnames = (k.products || []).map(pid => { const p = window._products ? window._products.find(x => x.id === pid) : null; return p ? p.name : pid; }).join(', ') || '—';
+    document.getElementById('keysCount').textContent = kr.keys ? '(' + kr.keys.length + ')' : '';
+    if (!keys.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No keys</td></tr>'; return; }
+    tbody.innerHTML = keys.map(k => {
+      const pnames = (k.products || []).map(pid => { const p = window._products.find(x => x.id === pid); return p ? p.name : pid; }).join(', ') || '—';
       return `<tr>
         <td class="key-code">${escHtml(k.code)}</td>
         <td>${escHtml(k.name)}</td>
@@ -549,19 +589,30 @@ async function loadKeys() {
   } catch {}
 }
 
+// Attach filter listeners on first keys tab show
+let filtersAttached = false;
+document.querySelector('.tab-btn[data-tab="keys"]').addEventListener('click', () => {
+  if (!filtersAttached) {
+    document.getElementById('filterProduct').addEventListener('change', loadKeys);
+    document.getElementById('filterDuration').addEventListener('change', loadKeys);
+    filtersAttached = true;
+  }
+});
+
 document.getElementById('genKeyBtn').addEventListener('click', async () => {
   const name = document.getElementById('keyName').value.trim();
   const duration = document.getElementById('keyDuration').value;
   const count = parseInt(document.getElementById('bulkCount').value) || 1;
   if (!name || !duration) { toast('Enter name and duration'); return; }
   const at = localStorage.getItem(ADMIN_KEY);
+  const prodIds = Array.from(document.querySelectorAll('.gen-prod-cb:checked')).map(cb => cb.value);
   try {
     if (count > 1) {
-      const res = await fetch(`${API}/keys/bulk`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminToken:at,prefix:name,count:count,duration:duration}) });
+      const res = await fetch(`${API}/keys/bulk`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminToken:at,prefix:name,count:count,duration:duration,products:prodIds}) });
       const d = await res.json();
       if (d.success) { toast('Created ' + d.keys.length + ' keys'); loadKeys(); }
     } else {
-      const res = await fetch(`${API}/keys`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminToken:at,name,duration}) });
+      const res = await fetch(`${API}/keys`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminToken:at,name,duration,products:prodIds}) });
       const d = await res.json();
       if (d.success) { toast('Key created: ' + d.key.code); loadKeys(); }
     }
@@ -573,6 +624,21 @@ async function deleteKey(id) {
   const at = localStorage.getItem(ADMIN_KEY);
   try { await fetch(`${API}/keys/${id}?adminToken=${encodeURIComponent(at)}`, { method:'DELETE' }); loadKeys(); }
   catch { toast('Error'); }
+}
+
+function exportRaw(claimed) {
+  const at = localStorage.getItem(ADMIN_KEY);
+  const product = document.getElementById('filterProduct').value;
+  const duration = document.getElementById('filterDuration').value;
+  const params = new URLSearchParams({ adminToken: at, claimed });
+  if (product) params.set('product', product);
+  if (duration) params.set('duration', duration);
+  const a = document.createElement('a');
+  a.href = `${API}/keys/raw?${params}`;
+  a.download = `keys_${claimed === 'true' ? 'claimed' : 'unclaimed'}${product ? '_' + product : ''}${duration ? '_' + duration + 'd' : ''}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 async function unlinkHwid(keyId) {
