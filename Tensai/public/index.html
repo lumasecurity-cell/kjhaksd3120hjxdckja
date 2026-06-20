@@ -262,10 +262,15 @@
       <div class="admin-card">
         <h3>All Keys <span id="keysCount" style="font-weight:400;font-size:13px;color:var(--muted);"></span></h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
-          <select id="filterProduct" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;min-width:140px;">
+          <select id="filterClaimed" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;">
+            <option value="">All Status</option>
+            <option value="claimed">Claimed</option>
+            <option value="unclaimed">Unclaimed</option>
+          </select>
+          <select id="filterProduct" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;">
             <option value="">All Products</option>
           </select>
-          <select id="filterDuration" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;min-width:140px;">
+          <select id="filterDuration" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;">
             <option value="">All Durations</option>
             <option value="lifetime">Lifetime</option>
             <option value="7">7 days</option>
@@ -276,7 +281,7 @@
             <option value="180">180 days</option>
             <option value="365">365 days</option>
           </select>
-          <input type="text" id="filterSearch" placeholder="Search keys..." style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;min-width:180px;flex:1;" oninput="loadKeys()">
+          <input type="text" id="filterSearch" placeholder="Search by key code..." style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;min-width:200px;" oninput="loadKeys()">
           <button class="admin-btn primary small" onclick="exportRaw('false')">&#128196; Raw Unclaimed</button>
           <button class="admin-btn primary small" onclick="exportRaw('true')">&#128196; Raw Claimed</button>
         </div>
@@ -565,11 +570,14 @@ async function loadKeys() {
     const genList = document.getElementById('genProductList');
     genList.innerHTML = window._products.map(p => `<label style="display:flex;align-items:center;gap:4px;font-size:13px;color:var(--muted);cursor:pointer;"><input type="checkbox" class="gen-prod-cb" value="${p.id}" style="accent-color:var(--pink);width:14px;height:14px;cursor:pointer;"> ${escHtml(p.name)}</label>`).join('');
 
+    const filterClaimed = document.getElementById('filterClaimed').value;
     const filterProd = document.getElementById('filterProduct').value;
     const filterDur = document.getElementById('filterDuration').value;
     const filterSearch = document.getElementById('filterSearch').value.trim().toLowerCase();
 
     let keys = kr.keys || [];
+    if (filterClaimed === 'claimed') keys = keys.filter(k => k.claimedBy);
+    else if (filterClaimed === 'unclaimed') keys = keys.filter(k => !k.claimedBy);
     if (filterProd) keys = keys.filter(k => k.products && k.products.includes(filterProd));
     if (filterDur) keys = keys.filter(k => String(k.duration) === filterDur);
     if (filterSearch) keys = keys.filter(k => k.code.toLowerCase().includes(filterSearch));
@@ -596,6 +604,7 @@ async function loadKeys() {
 let filtersAttached = false;
 document.querySelector('.tab-btn[data-tab="keys"]').addEventListener('click', () => {
   if (!filtersAttached) {
+    document.getElementById('filterClaimed').addEventListener('change', loadKeys);
     document.getElementById('filterProduct').addEventListener('change', loadKeys);
     document.getElementById('filterDuration').addEventListener('change', loadKeys);
     filtersAttached = true;
