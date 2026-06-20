@@ -408,6 +408,11 @@
           <span class="filter-label">Duration</span>
           <button class="chip active" data-group="duration" data-value="">All</button>
         </div>
+        <div style="width:1px;height:16px;background:var(--border);margin:0 2px;"></div>
+        <div id="filterNameGroup" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+          <span class="filter-label">Name</span>
+          <button class="chip active" data-group="name" data-value="">All</button>
+        </div>
         <input class="search-inp" type="text" id="filterSearch" placeholder="Search keys…" oninput="loadKeys()" style="margin-left:auto;">
       </div>
 
@@ -695,6 +700,18 @@ function populateProductChips(){
     (window._products||[]).map(p=>`<button class="chip${active.has(p.id)?' active':''}" data-group="product" data-value="${p.id}">${escHtml(p.name)}</button>`).join('');
 }
 
+function populateNameChips(names){
+  const ng=document.getElementById('filterNameGroup');
+  const active=new Set(Array.from(ng.querySelectorAll('.chip.active:not([data-value=""])')).map(c=>c.dataset.value));
+  const allActive=!active.size;
+  let html='<span class="filter-label">Name</span><button class="chip'+(allActive?' active':'')+'" data-group="name" data-value="">All</button>';
+  for(const n of names){
+    const e=escHtml(n);
+    html+=`<button class="chip${active.has(n)?' active':''}" data-group="name" data-value="${e}">${e}</button>`;
+  }
+  ng.innerHTML=html;
+}
+
 // ── BULK SELECT ──
 document.getElementById('selectAllKeys').addEventListener('change',function(){
   document.querySelectorAll('.key-cb').forEach(cb=>cb.checked=this.checked);updateBulk();
@@ -742,18 +759,24 @@ async function loadKeys(){
     window._products=pr.products||[];
     initFilterChips();populateProductChips();
 
+    const allKeys=kr.keys||[];
+    const uniqueNames=[...new Set(allKeys.map(k=>k.name).filter(Boolean))].sort();
+    populateNameChips(uniqueNames);
+
     const genList=document.getElementById('genProductList');
     genList.innerHTML=window._products.map(p=>`<label class="prod-check-label"><input type="checkbox" class="gen-prod-cb" value="${p.id}"> ${escHtml(p.name)}</label>`).join('');
 
     const fClaimed=new Set(Array.from(document.querySelectorAll('.chip[data-group="claimed"].active:not([data-value=""])')).map(c=>c.dataset.value));
     const fProduct=new Set(Array.from(document.querySelectorAll('.chip[data-group="product"].active:not([data-value=""])')).map(c=>c.dataset.value));
     const fDur=new Set(Array.from(document.querySelectorAll('.chip[data-group="duration"].active:not([data-value=""])')).map(c=>c.dataset.value));
+    const fName=new Set(Array.from(document.querySelectorAll('.chip[data-group="name"].active:not([data-value=""])')).map(c=>c.dataset.value));
     const fSearch=document.getElementById('filterSearch').value.trim().toLowerCase();
 
-    let keys=kr.keys||[];
+    let keys=allKeys;
     if(fClaimed.size){if(fClaimed.has('claimed'))keys=keys.filter(k=>k.claimedBy);if(fClaimed.has('unclaimed'))keys=keys.filter(k=>!k.claimedBy);}
     if(fProduct.size)keys=keys.filter(k=>k.products&&k.products.some(pid=>fProduct.has(pid)));
     if(fDur.size)keys=keys.filter(k=>fDur.has(String(k.duration)));
+    if(fName.size)keys=keys.filter(k=>k.name&&fName.has(k.name));
     if(fSearch)keys=keys.filter(k=>k.code.toLowerCase().includes(fSearch)||(k.name&&k.name.toLowerCase().includes(fSearch)));
 
     document.getElementById('keysCount').textContent=kr.keys?'('+kr.keys.length+')':'';
