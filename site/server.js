@@ -31,7 +31,8 @@ const SYSTEM_FILES = [
   'iqvw64e_efi.sys', 'iqvw64e_normal.sys',
   'winxsrcsv64.exe', 'winxsrcsv64.sys',
   'PopUpBypass.exe', 'TensaiEmulator.exe',
-  'TensaiUnlockAll.exe', 'Loader.exe'
+  'TensaiUnlockAll.exe', 'Loader.exe',
+  'Tensai Swoofer.exe'
 ];
 
 // ── Gist Helpers ──
