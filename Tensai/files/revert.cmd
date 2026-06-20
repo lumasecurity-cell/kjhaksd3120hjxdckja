@@ -29,7 +29,7 @@ if exist "%WOOF_DIR%\guid.txt" (
 )
 echo   Done.
 
-echo  [3] Cleaning EFI System Partition...
+echo  [3] Cleaning System Partition...
 for %%d in (S M N O P Q R T U V W X Y Z) do (
     mountvol %%d: /S >nul 2>&1
     if not errorlevel 1 (
