@@ -127,6 +127,7 @@
     display: flex; align-items: center; justify-content: center; z-index: 200;
     animation: fadeIn 0.2s ease;
   }
+  .modal-overlay.hidden { display: none; }
   .modal-box {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 32px; width: 480px; max-width: 92vw; max-height: 80vh; overflow-y: auto;
@@ -261,7 +262,7 @@
       </div>
       <div class="admin-card">
         <h3>All Keys <span id="keysCount" style="font-weight:400;font-size:13px;color:var(--muted);"></span></h3>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;overflow-x:auto;white-space:nowrap;">
           <select id="filterClaimed" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;">
             <option value="">All Status</option>
             <option value="claimed">Claimed</option>
@@ -318,6 +319,18 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="modal-overlay hidden" id="confirmModal">
+  <div class="modal-box" style="max-width:400px;text-align:center;">
+    <div id="confirmMsg" style="font-size:15px;margin-bottom:16px;"></div>
+    <label id="confirmDontShow" style="display:flex;align-items:center;gap:6px;justify-content:center;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:16px;">
+      <input type="checkbox" id="confirmDontShowCb" style="accent-color:var(--pink);width:14px;height:14px;cursor:pointer;"> Don't show this again
+    </label>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button class="admin-btn danger" id="confirmYesBtn">Yes</button>
+      <button class="admin-btn primary" id="confirmNoBtn">No</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const API = '/api';
@@ -632,10 +645,11 @@ document.getElementById('genKeyBtn').addEventListener('click', async () => {
 });
 
 async function deleteKey(id) {
-  if (!confirm('Delete this key?')) return;
-  const at = localStorage.getItem(ADMIN_KEY);
-  try { await fetch(`${API}/keys/${id}?adminToken=${encodeURIComponent(at)}`, { method:'DELETE' }); loadKeys(); }
-  catch { toast('Error'); }
+  showConfirmModal('Delete this key?', async () => {
+    const at = localStorage.getItem(ADMIN_KEY);
+    try { await fetch(`${API}/keys/${id}?adminToken=${encodeURIComponent(at)}`, { method:'DELETE' }); loadKeys(); }
+    catch { toast('Error'); }
+  }, 'deleteKey');
 }
 
 function exportRaw(claimed) {
@@ -656,13 +670,14 @@ function exportRaw(claimed) {
 }
 
 async function unlinkHwid(keyId) {
-  if (!confirm('Unlink HWID from this key?')) return;
-  const at = localStorage.getItem(ADMIN_KEY);
-  try {
-    const r = await fetch(`${API}/keys/${keyId}/unlink-hwid`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminToken:at}) });
-    const d = await r.json();
-    if (d.success) { toast('HWID unlinked'); loadKeys(); }
-  } catch { toast('Error'); }
+  showConfirmModal('Unlink HWID from this key?', async () => {
+    const at = localStorage.getItem(ADMIN_KEY);
+    try {
+      const r = await fetch(`${API}/keys/${keyId}/unlink-hwid`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminToken:at}) });
+      const d = await r.json();
+      if (d.success) { toast('HWID unlinked'); loadKeys(); }
+    } catch { toast('Error'); }
+  }, 'unlinkHwid');
 }
 
 let editingKeyId = null;
@@ -763,10 +778,11 @@ async function editProductFiles(pid) {
 }
 
 async function deleteProduct(id) {
-  if (!confirm('Delete this product?')) return;
-  const at = localStorage.getItem(ADMIN_KEY);
-  try { await fetch(`${API}/products/${id}?adminToken=${encodeURIComponent(at)}`, { method:'DELETE' }); loadProducts(); }
-  catch { toast('Error'); }
+  showConfirmModal('Delete this product?', async () => {
+    const at = localStorage.getItem(ADMIN_KEY);
+    try { await fetch(`${API}/products/${id}?adminToken=${encodeURIComponent(at)}`, { method:'DELETE' }); loadProducts(); }
+    catch { toast('Error'); }
+  }, 'deleteProduct');
 }
 
 // ── Customer Dashboard ──
@@ -791,6 +807,30 @@ async function loadDashboard() {
       }).join('');
     }
   } catch { toast('Error loading dashboard'); }
+}
+
+// ── Confirm Modal ──
+function showConfirmModal(msg, onYes, dontShowKey) {
+  if (dontShowKey && localStorage.getItem('dontask_' + dontShowKey)) { onYes(); return; }
+  const modal = document.getElementById('confirmModal');
+  document.getElementById('confirmMsg').textContent = msg;
+  const dsLabel = document.getElementById('confirmDontShow');
+  dsLabel.style.display = dontShowKey ? 'flex' : 'none';
+  document.getElementById('confirmDontShowCb').checked = false;
+  modal.classList.remove('hidden');
+  return new Promise(resolve => {
+    document.getElementById('confirmYesBtn').onclick = () => {
+      modal.classList.add('hidden');
+      if (dontShowKey && document.getElementById('confirmDontShowCb').checked)
+        localStorage.setItem('dontask_' + dontShowKey, '1');
+      onYes();
+      resolve(true);
+    };
+    document.getElementById('confirmNoBtn').onclick = () => {
+      modal.classList.add('hidden');
+      resolve(false);
+    };
+  });
 }
 
 // ── Utils ──
