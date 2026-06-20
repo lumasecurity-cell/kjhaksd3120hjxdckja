@@ -361,7 +361,7 @@ app.post('/api/keys/:id/products', (req, res) => {
 });
 
 app.get('/api/keys/raw', (req, res) => {
-  const { adminToken, claimed, product, duration } = req.query;
+  const { adminToken, claimed, product, duration, search } = req.query;
   if (adminToken !== ADMIN_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
 
   const data = loadData();
@@ -372,6 +372,7 @@ app.get('/api/keys/raw', (req, res) => {
 
   if (product) keys = keys.filter(k => k.products && k.products.includes(product));
   if (duration) keys = keys.filter(k => String(k.duration) === duration);
+  if (search) keys = keys.filter(k => k.code.toLowerCase().includes(search.toLowerCase()));
 
   const text = keys.map(k => k.code).join('\n');
   const filename = `keys_${claimed === 'true' ? 'claimed' : 'unclaimed'}${product ? '_' + product : ''}${duration ? '_' + duration + 'd' : ''}.txt`;

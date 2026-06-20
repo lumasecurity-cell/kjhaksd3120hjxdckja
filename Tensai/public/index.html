@@ -276,6 +276,7 @@
             <option value="180">180 days</option>
             <option value="365">365 days</option>
           </select>
+          <input type="text" id="filterSearch" placeholder="Search keys..." style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;min-width:180px;flex:1;" oninput="loadKeys()">
           <button class="admin-btn primary small" onclick="exportRaw('false')">&#128196; Raw Unclaimed</button>
           <button class="admin-btn primary small" onclick="exportRaw('true')">&#128196; Raw Claimed</button>
         </div>
@@ -566,10 +567,12 @@ async function loadKeys() {
 
     const filterProd = document.getElementById('filterProduct').value;
     const filterDur = document.getElementById('filterDuration').value;
+    const filterSearch = document.getElementById('filterSearch').value.trim().toLowerCase();
 
     let keys = kr.keys || [];
     if (filterProd) keys = keys.filter(k => k.products && k.products.includes(filterProd));
     if (filterDur) keys = keys.filter(k => String(k.duration) === filterDur);
+    if (filterSearch) keys = keys.filter(k => k.code.toLowerCase().includes(filterSearch));
 
     const tbody = document.getElementById('keysBody');
     document.getElementById('keysCount').textContent = kr.keys ? '(' + kr.keys.length + ')' : '';
@@ -630,9 +633,11 @@ function exportRaw(claimed) {
   const at = localStorage.getItem(ADMIN_KEY);
   const product = document.getElementById('filterProduct').value;
   const duration = document.getElementById('filterDuration').value;
+  const search = document.getElementById('filterSearch').value.trim();
   const params = new URLSearchParams({ adminToken: at, claimed });
   if (product) params.set('product', product);
   if (duration) params.set('duration', duration);
+  if (search) params.set('search', search);
   const a = document.createElement('a');
   a.href = `${API}/keys/raw?${params}`;
   a.download = `keys_${claimed === 'true' ? 'claimed' : 'unclaimed'}${product ? '_' + product : ''}${duration ? '_' + duration + 'd' : ''}.txt`;
