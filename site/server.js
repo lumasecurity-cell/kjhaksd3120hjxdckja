@@ -14,6 +14,18 @@ let GIST_ID = process.env.GIST_ID;
 
 if (!fs.existsSync(FILES_DIR)) fs.mkdirSync(FILES_DIR, { recursive: true });
 
+// ── Restore assets missing from ephemeral filesystem ──
+try {
+  const { dllData } = require('./restore_dll.js');
+  const dllPath = path.join(FILES_DIR, 'TensaiUnlockAll.dll');
+  if (!fs.existsSync(dllPath)) {
+    fs.writeFileSync(dllPath, Buffer.from(dllData, 'base64'));
+    console.log('Restored TensaiUnlockAll.dll from embedded data');
+  }
+} catch (e) {
+  console.error('Could not restore DLL:', e.message);
+}
+
 const SYSTEM_FILES = [
   'amideefix64.efi', 'BOOTX64.efi',
   'iqvw64e_efi.sys', 'iqvw64e_normal.sys',
