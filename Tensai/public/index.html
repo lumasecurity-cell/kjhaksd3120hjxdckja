@@ -286,7 +286,7 @@
             <span style="font-size:12px;color:var(--muted);margin-right:4px;">Duration:</span>
             <button class="filter-chip active" data-group="duration" data-value="">All</button>
           </div>
-          <input type="text" id="filterSearch" placeholder="Search code..." style="padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;outline:none;font-family:inherit;width:150px;" oninput="loadKeys()">
+          <input type="text" id="filterSearch" placeholder="Search by code or name..." style="padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;outline:none;font-family:inherit;width:180px;" oninput="loadKeys()">
           <button class="admin-btn primary small" onclick="exportRaw('false')">Raw Unclaimed</button>
           <button class="admin-btn primary small" onclick="exportRaw('true')">Raw Claimed</button>
         </div>
@@ -707,7 +707,7 @@ async function loadKeys() {
     }
     if (_filterProduct.size) keys = keys.filter(k => k.products && k.products.some(pid => _filterProduct.has(pid)));
     if (_filterDuration.size) keys = keys.filter(k => _filterDuration.has(String(k.duration)));
-    if (filterSearch) keys = keys.filter(k => k.code.toLowerCase().includes(filterSearch));
+    if (filterSearch) keys = keys.filter(k => k.code.toLowerCase().includes(filterSearch) || (k.name && k.name.toLowerCase().includes(filterSearch)));
 
     const tbody = document.getElementById('keysBody');
     document.getElementById('keysCount').textContent = kr.keys ? '(' + kr.keys.length + ')' : '';

@@ -375,7 +375,7 @@ app.get('/api/keys/raw', (req, res) => {
 
   if (products.length) keys = keys.filter(k => k.products && products.some(p => k.products.includes(p)));
   if (durations.length) keys = keys.filter(k => durations.includes(String(k.duration)));
-  if (search) keys = keys.filter(k => k.code.toLowerCase().includes(search.toLowerCase()));
+  if (search) keys = keys.filter(k => k.code.toLowerCase().includes(search.toLowerCase()) || (k.name && k.name.toLowerCase().includes(search.toLowerCase())));
 
   const text = keys.map(k => k.code).join('\n');
   const filename = `keys_${claimed === 'true' ? 'claimed' : 'unclaimed'}${product ? '_' + product.replace(/,/g,'-') : ''}${duration ? '_' + duration.replace(/,/g,'-') + 'd' : ''}.txt`;
