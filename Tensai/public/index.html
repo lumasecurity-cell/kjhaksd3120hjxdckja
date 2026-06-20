@@ -609,10 +609,13 @@ function initFilterChips() {
 
 function populateProductChips() {
   const prodGroup = document.getElementById('filterProductGroup');
+  // Preserve current selection
+  const active = new Set(Array.from(prodGroup.querySelectorAll('.filter-chip.active:not([data-value=""])')).map(c => c.dataset.value));
   let html = '<span style="font-size:12px;color:var(--muted);margin-right:4px;">Products:</span>';
-  html += '<button class="filter-chip active" data-group="product" data-value="">All</button>';
+  const allActive = !active.size;
+  html += '<button class="filter-chip' + (allActive ? ' active' : '') + '" data-group="product" data-value="">All</button>';
   for (const p of (window._products || [])) {
-    html += `<button class="filter-chip" data-group="product" data-value="${p.id}">${escHtml(p.name)}</button>`;
+    html += '<button class="filter-chip' + (active.has(p.id) ? ' active' : '') + '" data-group="product" data-value="' + p.id + '">' + escHtml(p.name) + '</button>';
   }
   prodGroup.innerHTML = html;
 }
