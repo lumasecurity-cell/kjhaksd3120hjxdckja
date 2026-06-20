@@ -360,6 +360,20 @@ app.post('/api/keys/:id/products', (req, res) => {
   res.json({ success: true, key });
 });
 
+app.post('/api/keys/:id/unlink-hwid', (req, res) => {
+  const { adminToken } = req.body || {};
+  if (adminToken !== ADMIN_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
+  const data = loadData();
+  const key = data.keys.find(k => k.id === parseInt(req.params.id));
+  if (!key) return res.status(404).json({ error: 'Key not found' });
+  key.hwid = null;
+  key.hwidLocked = false;
+  const user = data.users.find(u => u.keyId === key.id);
+  if (user) user.hwid = null;
+  saveData(data);
+  res.json({ success: true });
+});
+
 // ── Admin: Products ──
 app.get('/api/products', (req, res) => {
   const adminToken = req.query.adminToken;

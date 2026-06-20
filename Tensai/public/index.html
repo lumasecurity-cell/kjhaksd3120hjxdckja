@@ -541,7 +541,7 @@ async function loadKeys() {
         <td>${escHtml(k.name)}</td>
         <td>${k.duration === 'lifetime' ? '<span class="badge badge-purple">Lifetime</span>' : k.duration + 'd'}</td>
         <td>${k.claimedBy ? escHtml(k.claimedBy) : '<span style="color:var(--muted)">—</span>'}</td>
-        <td>${k.hwid ? `<span class="badge badge-green">${escHtml(k.hwid.substr(0,16))}..</span>` : '<span class="badge badge-yellow">Pending</span>'}</td>
+        <td>${k.hwid ? `<span class="badge badge-green">${escHtml(k.hwid.substr(0,16))}..</span> <button class="admin-btn small danger" onclick="unlinkHwid(${k.id})">Unlink</button>` : '<span class="badge badge-yellow">Pending</span>'}</td>
         <td style="font-size:12px;">${pnames}</td>
         <td><button class="admin-btn small primary" onclick="editKeyProducts(${k.id})">Products</button> <button class="admin-btn small danger" onclick="deleteKey(${k.id})">X</button></td>
       </tr>`;
@@ -573,6 +573,16 @@ async function deleteKey(id) {
   const at = localStorage.getItem(ADMIN_KEY);
   try { await fetch(`${API}/keys/${id}?adminToken=${encodeURIComponent(at)}`, { method:'DELETE' }); loadKeys(); }
   catch { toast('Error'); }
+}
+
+async function unlinkHwid(keyId) {
+  if (!confirm('Unlink HWID from this key?')) return;
+  const at = localStorage.getItem(ADMIN_KEY);
+  try {
+    const r = await fetch(`${API}/keys/${keyId}/unlink-hwid`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminToken:at}) });
+    const d = await r.json();
+    if (d.success) { toast('HWID unlinked'); loadKeys(); }
+  } catch { toast('Error'); }
 }
 
 let editingKeyId = null;
