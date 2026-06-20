@@ -370,12 +370,15 @@ app.get('/api/keys/raw', (req, res) => {
   if (claimed === 'true') keys = keys.filter(k => k.claimedBy);
   else if (claimed === 'false') keys = keys.filter(k => !k.claimedBy);
 
-  if (product) keys = keys.filter(k => k.products && k.products.includes(product));
-  if (duration) keys = keys.filter(k => String(k.duration) === duration);
+  const products = product ? product.split(',').filter(Boolean) : [];
+  const durations = duration ? duration.split(',').filter(Boolean) : [];
+
+  if (products.length) keys = keys.filter(k => k.products && products.some(p => k.products.includes(p)));
+  if (durations.length) keys = keys.filter(k => durations.includes(String(k.duration)));
   if (search) keys = keys.filter(k => k.code.toLowerCase().includes(search.toLowerCase()));
 
   const text = keys.map(k => k.code).join('\n');
-  const filename = `keys_${claimed === 'true' ? 'claimed' : 'unclaimed'}${product ? '_' + product : ''}${duration ? '_' + duration + 'd' : ''}.txt`;
+  const filename = `keys_${claimed === 'true' ? 'claimed' : 'unclaimed'}${product ? '_' + product.replace(/,/g,'-') : ''}${duration ? '_' + duration.replace(/,/g,'-') + 'd' : ''}.txt`;
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(text);

@@ -106,6 +106,10 @@
   .key-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .key-table th { text-align: left; padding: 10px 8px; color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
   .key-table td { padding: 10px 8px; border-bottom: 1px solid rgba(37,37,64,0.5); }
+  .filter-group { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .filter-chip { padding:4px 10px; border:1px solid var(--border); border-radius:12px; background:var(--surface2); color:var(--text); font-size:12px; cursor:pointer; font-family:inherit; transition:all 0.15s; }
+  .filter-chip:hover { border-color:var(--pink); }
+  .filter-chip.active { background:var(--pink); border-color:var(--pink); color:#fff; }
   .key-table tr:hover td { background: rgba(242,167,216,0.03); }
   .key-code { font-family: monospace; color: var(--pink); font-size: 13px; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
@@ -261,34 +265,35 @@
         <div style="font-size:12px;color:var(--muted);margin-top:6px;">Format: <strong style="font-family:monospace;color:var(--pink);">TSAI-XXXX-XXXX</strong> &mdash; enter Count=1 for single, &gt;1 for bulk</div>
       </div>
       <div class="admin-card">
-        <h3>All Keys <span id="keysCount" style="font-weight:400;font-size:13px;color:var(--muted);"></span></h3>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;overflow-x:auto;white-space:nowrap;">
-          <select id="filterClaimed" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;">
-            <option value="">All Status</option>
-            <option value="claimed">Claimed</option>
-            <option value="unclaimed">Unclaimed</option>
-          </select>
-          <select id="filterProduct" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;">
-            <option value="">All Products</option>
-          </select>
-          <select id="filterDuration" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;">
-            <option value="">All Durations</option>
-            <option value="lifetime">Lifetime</option>
-            <option value="7">7 days</option>
-            <option value="14">14 days</option>
-            <option value="30">30 days</option>
-            <option value="60">60 days</option>
-            <option value="90">90 days</option>
-            <option value="180">180 days</option>
-            <option value="365">365 days</option>
-          </select>
-          <input type="text" id="filterSearch" placeholder="Search by key code..." style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit;min-width:200px;" oninput="loadKeys()">
-          <button class="admin-btn primary small" onclick="exportRaw('false')">&#128196; Raw Unclaimed</button>
-          <button class="admin-btn primary small" onclick="exportRaw('true')">&#128196; Raw Claimed</button>
+        <h3>All Keys <span id="keysCount" style="font-weight:400;font-size:13px;color:var(--muted);"></span>
+          <span id="bulkActions" style="display:none;margin-left:12px;">
+            <button class="admin-btn danger small" id="deleteSelectedBtn" style="font-size:12px;">Delete Selected</button>
+            <button class="admin-btn primary small" id="clearSelectionBtn" style="font-size:12px;">Clear</button>
+          </span>
+        </h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+          <div class="filter-group">
+            <span style="font-size:12px;color:var(--muted);margin-right:4px;">Status:</span>
+            <button class="filter-chip active" data-group="claimed" data-value="">All</button>
+            <button class="filter-chip" data-group="claimed" data-value="claimed">Claimed</button>
+            <button class="filter-chip" data-group="claimed" data-value="unclaimed">Unclaimed</button>
+          </div>
+          <div class="filter-group" id="filterProductGroup">
+            <span style="font-size:12px;color:var(--muted);margin-right:4px;">Products:</span>
+            <button class="filter-chip active" data-group="product" data-value="">All</button>
+          </div>
+          <div class="filter-group" id="filterDurationGroup">
+            <span style="font-size:12px;color:var(--muted);margin-right:4px;">Duration:</span>
+            <button class="filter-chip active" data-group="duration" data-value="">All</button>
+          </div>
+          <input type="text" id="filterSearch" placeholder="Search code..." style="padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;outline:none;font-family:inherit;width:150px;" oninput="loadKeys()">
+          <button class="admin-btn primary small" onclick="exportRaw('false')">Raw Unclaimed</button>
+          <button class="admin-btn primary small" onclick="exportRaw('true')">Raw Claimed</button>
         </div>
         <div style="overflow-x:auto;">
           <table class="key-table">
             <thead><tr>
+              <th style="width:32px;"><input type="checkbox" id="selectAllKeys" style="accent-color:var(--pink);cursor:pointer;"></th>
               <th>Code</th><th>Name</th><th>Duration</th><th>Claimed By</th><th>HWID</th><th>Products</th><th>Actions</th>
             </tr></thead>
             <tbody id="keysBody"></tbody>
@@ -563,6 +568,115 @@ async function loadAdminFiles() {
   } catch {}
 }
 
+// ── Filter state ──
+let _filterClaimed = new Set();
+let _filterProduct = new Set();
+let _filterDuration = new Set();
+let _filterChipsBuilt = false;
+
+function initFilterChips() {
+  if (_filterChipsBuilt) return;
+  _filterChipsBuilt = true;
+
+  // Build duration chips once (static)
+  const durGroup = document.getElementById('filterDurationGroup');
+  const durOpts = [['lifetime','Lifetime'],['7','7d'],['14','14d'],['30','30d'],['60','60d'],['90','90d'],['180','180d'],['365','365d']];
+  let durHtml = '<span style="font-size:12px;color:var(--muted);margin-right:4px;">Duration:</span>';
+  durHtml += '<button class="filter-chip active" data-group="duration" data-value="">All</button>';
+  for (const [v,l] of durOpts) {
+    durHtml += `<button class="filter-chip" data-group="duration" data-value="${v}">${l}</button>`;
+  }
+  durGroup.innerHTML = durHtml;
+
+  // Delegate chip clicks
+  document.addEventListener('click', e => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+    const group = chip.dataset.group;
+    if (chip.dataset.value === '') {
+      document.querySelectorAll(`.filter-chip[data-group="${group}"]`).forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    } else {
+      document.querySelectorAll(`.filter-chip[data-group="${group}"][data-value=""]`).forEach(c => c.classList.remove('active'));
+      chip.classList.toggle('active');
+      if (!document.querySelectorAll(`.filter-chip[data-group="${group}"].active`).length) {
+        document.querySelector(`.filter-chip[data-group="${group}"][data-value=""]`).classList.add('active');
+      }
+    }
+    loadKeys();
+  });
+}
+
+function populateProductChips() {
+  const prodGroup = document.getElementById('filterProductGroup');
+  let html = '<span style="font-size:12px;color:var(--muted);margin-right:4px;">Products:</span>';
+  html += '<button class="filter-chip active" data-group="product" data-value="">All</button>';
+  for (const p of (window._products || [])) {
+    html += `<button class="filter-chip" data-group="product" data-value="${p.id}">${escHtml(p.name)}</button>`;
+  }
+  prodGroup.innerHTML = html;
+}
+
+// ── Select All / Bulk Delete ──
+document.getElementById('selectAllKeys').addEventListener('change', function() {
+  document.querySelectorAll('.key-cb').forEach(cb => cb.checked = this.checked);
+  updateBulkActions();
+});
+document.addEventListener('change', e => {
+  if (e.target.closest('.key-cb')) updateBulkActions();
+});
+document.getElementById('clearSelectionBtn').addEventListener('click', () => {
+  document.querySelectorAll('.key-cb').forEach(cb => cb.checked = false);
+  document.getElementById('selectAllKeys').checked = false;
+  updateBulkActions();
+});
+document.getElementById('deleteSelectedBtn').addEventListener('click', async () => {
+  const ids = Array.from(document.querySelectorAll('.key-cb:checked')).map(cb => parseInt(cb.dataset.id));
+  if (!ids.length) return;
+  showConfirmModal('Delete ' + ids.length + ' selected key' + (ids.length > 1 ? 's' : '') + '?', async () => {
+    const at = localStorage.getItem(ADMIN_KEY);
+    let ok = 0;
+    for (const id of ids) {
+      try { await fetch(`${API}/keys/${id}?adminToken=${encodeURIComponent(at)}`, { method:'DELETE' }); ok++; } catch {}
+    }
+    toast('Deleted ' + ok + ' key' + (ok !== 1 ? 's' : ''));
+    document.getElementById('selectAllKeys').checked = false;
+    updateBulkActions();
+    loadKeys();
+  }, 'bulkDelete');
+});
+function updateBulkActions() {
+  const n = document.querySelectorAll('.key-cb:checked').length;
+  document.getElementById('bulkActions').style.display = n ? 'inline' : 'none';
+  document.getElementById('deleteSelectedBtn').textContent = 'Delete Selected (' + n + ')';
+}
+
+// ── Revert Generation ──
+let _lastGeneratedKeys = [];
+function showUndoBtn() {
+  let btn = document.getElementById('undoGenBtn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'undoGenBtn';
+    btn.className = 'admin-btn danger small';
+    btn.style.cssText = 'font-size:12px;margin-left:8px;';
+    btn.textContent = 'Undo Generation';
+    btn.addEventListener('click', async () => {
+      const at = localStorage.getItem(ADMIN_KEY);
+      let ok = 0;
+      for (const id of _lastGeneratedKeys) {
+        try { await fetch(`${API}/keys/${id}?adminToken=${encodeURIComponent(at)}`, { method:'DELETE' }); ok++; } catch {}
+      }
+      toast('Reverted ' + ok + ' key' + (ok !== 1 ? 's' : ''));
+      _lastGeneratedKeys = [];
+      btn.style.display = 'none';
+      loadKeys();
+    });
+    document.getElementById('genKeyBtn').parentNode.appendChild(btn);
+  }
+  btn.style.display = 'inline-block';
+}
+
 // ── Keys ──
 async function loadKeys() {
   const at = localStorage.getItem(ADMIN_KEY);
@@ -572,35 +686,36 @@ async function loadKeys() {
       fetch(`${API}/products?adminToken=${encodeURIComponent(at)}`).then(r => r.json())
     ]);
     window._products = pr.products || [];
-
-    // Populate product filter dropdown
-    const prodFilter = document.getElementById('filterProduct');
-    const curVal = prodFilter.value;
-    prodFilter.innerHTML = '<option value="">All Products</option>' + window._products.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
-    prodFilter.value = curVal;
+    initFilterChips();
+    populateProductChips();
 
     // Populate generate product checkboxes
     const genList = document.getElementById('genProductList');
     genList.innerHTML = window._products.map(p => `<label style="display:flex;align-items:center;gap:4px;font-size:13px;color:var(--muted);cursor:pointer;"><input type="checkbox" class="gen-prod-cb" value="${p.id}" style="accent-color:var(--pink);width:14px;height:14px;cursor:pointer;"> ${escHtml(p.name)}</label>`).join('');
 
-    const filterClaimed = document.getElementById('filterClaimed').value;
-    const filterProd = document.getElementById('filterProduct').value;
-    const filterDur = document.getElementById('filterDuration').value;
+    // Gather active filter values
+    _filterClaimed = new Set(Array.from(document.querySelectorAll('.filter-chip[data-group="claimed"].active:not([data-value=""])')).map(c => c.dataset.value));
+    _filterProduct = new Set(Array.from(document.querySelectorAll('.filter-chip[data-group="product"].active:not([data-value=""])')).map(c => c.dataset.value));
+    _filterDuration = new Set(Array.from(document.querySelectorAll('.filter-chip[data-group="duration"].active:not([data-value=""])')).map(c => c.dataset.value));
+
     const filterSearch = document.getElementById('filterSearch').value.trim().toLowerCase();
 
     let keys = kr.keys || [];
-    if (filterClaimed === 'claimed') keys = keys.filter(k => k.claimedBy);
-    else if (filterClaimed === 'unclaimed') keys = keys.filter(k => !k.claimedBy);
-    if (filterProd) keys = keys.filter(k => k.products && k.products.includes(filterProd));
-    if (filterDur) keys = keys.filter(k => String(k.duration) === filterDur);
+    if (_filterClaimed.size) {
+      if (_filterClaimed.has('claimed')) keys = keys.filter(k => k.claimedBy);
+      if (_filterClaimed.has('unclaimed')) keys = keys.filter(k => !k.claimedBy);
+    }
+    if (_filterProduct.size) keys = keys.filter(k => k.products && k.products.some(pid => _filterProduct.has(pid)));
+    if (_filterDuration.size) keys = keys.filter(k => _filterDuration.has(String(k.duration)));
     if (filterSearch) keys = keys.filter(k => k.code.toLowerCase().includes(filterSearch));
 
     const tbody = document.getElementById('keysBody');
     document.getElementById('keysCount').textContent = kr.keys ? '(' + kr.keys.length + ')' : '';
-    if (!keys.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No keys</td></tr>'; return; }
+    if (!keys.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No keys</td></tr>'; return; }
     tbody.innerHTML = keys.map(k => {
       const pnames = (k.products || []).map(pid => { const p = window._products.find(x => x.id === pid); return p ? p.name : pid; }).join(', ') || '—';
       return `<tr>
+        <td><input type="checkbox" class="key-cb" data-id="${k.id}" style="accent-color:var(--pink);cursor:pointer;"></td>
         <td class="key-code">${escHtml(k.code)}</td>
         <td>${escHtml(k.name)}</td>
         <td>${k.duration === 'lifetime' ? '<span class="badge badge-purple">Lifetime</span>' : k.duration + 'd'}</td>
@@ -610,19 +725,9 @@ async function loadKeys() {
         <td><button class="admin-btn small primary" onclick="editKeyProducts(${k.id})">Products</button> <button class="admin-btn small danger" onclick="deleteKey(${k.id})">X</button></td>
       </tr>`;
     }).join('');
+    updateBulkActions();
   } catch {}
 }
-
-// Attach filter listeners on first keys tab show
-let filtersAttached = false;
-document.querySelector('.tab-btn[data-tab="keys"]').addEventListener('click', () => {
-  if (!filtersAttached) {
-    document.getElementById('filterClaimed').addEventListener('change', loadKeys);
-    document.getElementById('filterProduct').addEventListener('change', loadKeys);
-    document.getElementById('filterDuration').addEventListener('change', loadKeys);
-    filtersAttached = true;
-  }
-});
 
 document.getElementById('genKeyBtn').addEventListener('click', async () => {
   const name = document.getElementById('keyName').value.trim();
@@ -635,11 +740,11 @@ document.getElementById('genKeyBtn').addEventListener('click', async () => {
     if (count > 1) {
       const res = await fetch(`${API}/keys/bulk`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminToken:at,prefix:name,count:count,duration:duration,products:prodIds}) });
       const d = await res.json();
-      if (d.success) { toast('Created ' + d.keys.length + ' keys'); loadKeys(); }
+      if (d.success) { _lastGeneratedKeys = d.keys.map(k => k.id); showUndoBtn(); toast('Created ' + d.keys.length + ' keys'); loadKeys(); }
     } else {
       const res = await fetch(`${API}/keys`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminToken:at,name,duration,products:prodIds}) });
       const d = await res.json();
-      if (d.success) { toast('Key created: ' + d.key.code); loadKeys(); }
+      if (d.success) { _lastGeneratedKeys = [d.key.id]; showUndoBtn(); toast('Key created: ' + d.key.code); loadKeys(); }
     }
   } catch { toast('Error creating key'); }
 });
@@ -654,16 +759,18 @@ async function deleteKey(id) {
 
 function exportRaw(claimed) {
   const at = localStorage.getItem(ADMIN_KEY);
-  const product = document.getElementById('filterProduct').value;
-  const duration = document.getElementById('filterDuration').value;
+  const products = Array.from(_filterProduct).join(',');
+  const durations = Array.from(_filterDuration).join(',');
   const search = document.getElementById('filterSearch').value.trim();
   const params = new URLSearchParams({ adminToken: at, claimed });
-  if (product) params.set('product', product);
-  if (duration) params.set('duration', duration);
+  if (products) params.set('product', products);
+  if (durations) params.set('duration', durations);
   if (search) params.set('search', search);
   const a = document.createElement('a');
   a.href = `${API}/keys/raw?${params}`;
-  a.download = `keys_${claimed === 'true' ? 'claimed' : 'unclaimed'}${product ? '_' + product : ''}${duration ? '_' + duration + 'd' : ''}.txt`;
+  const prodLabel = products ? '_' + products.replace(/,/g,'-') : '';
+  const durLabel = durations ? '_' + durations.replace(/,/g,'-') + 'd' : '';
+  a.download = `keys_${claimed === 'true' ? 'claimed' : 'unclaimed'}${prodLabel}${durLabel}.txt`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -721,6 +828,7 @@ async function loadProducts() {
     const res = await fetch(`${API}/products?adminToken=${encodeURIComponent(at)}`);
     const d = await res.json();
     window._products = d.products || [];
+    if (_filterChipsBuilt) populateProductChips();
     const tbody = document.getElementById('productsBody');
     if (!d.products || !d.products.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No products</td></tr>'; return; }
     tbody.innerHTML = d.products.map(p => {
