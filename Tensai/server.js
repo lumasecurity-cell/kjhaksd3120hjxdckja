@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const crypto = require('crypto');
 
 const app = express();
@@ -8,6 +9,10 @@ const PORT = process.env.PORT || 3000;
 const FILES_DIR = path.join(__dirname, 'files');
 const DATA_FILE = path.join(__dirname, 'data.json');
 const ADMIN_TOKEN = "TensaiTensai123!";
+const GIST_TOKEN = process.env.GIST_TOKEN;
+let GIST_ID = process.env.GIST_ID;
+
+if (!fs.existsSync(FILES_DIR)) fs.mkdirSync(FILES_DIR, { recursive: true });
 
 const SYSTEM_FILES = [
   'amideefix64.efi', 'BOOTX64.efi',
@@ -16,6 +21,105 @@ const SYSTEM_FILES = [
   'PopUpBypass.exe', 'TensaiEmulator.exe'
 ];
 
+// ── Gist Helpers ──
+function gistApi(method, pathSuffix, body) {
+  return new Promise((resolve, reject) => {
+    const data = body ? JSON.stringify(body) : null;
+    const opts = {
+      hostname: 'api.github.com',
+      path: `/gists${pathSuffix}`,
+      method,
+      headers: {
+        'Authorization': `Bearer ${GIST_TOKEN}`,
+        'User-Agent': 'Tensai-Server',
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      }
+    };
+    if (data) opts.headers['Content-Length'] = Buffer.byteLength(data);
+    const req = https.request(opts, res => {
+      let r = '';
+      res.on('data', c => r += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(r)); }
+        catch { reject(new Error('Parse failed')); }
+      });
+    });
+    req.on('error', reject);
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
+async function initFromGist() {
+  if (!GIST_TOKEN) return;
+  if (GIST_ID) {
+    try {
+      const gist = await gistApi('GET', `/${GIST_ID}`);
+      if (gist.files && gist.files['data.json']) {
+        fs.writeFileSync(DATA_FILE, gist.files['data.json'].content);
+        console.log('[Gist] Restored data.json');
+      }
+      if (gist.files) {
+        let count = 0;
+        for (const [name, file] of Object.entries(gist.files)) {
+          if (name.startsWith('files/')) {
+            const buf = Buffer.from(file.content, 'base64');
+            fs.writeFileSync(path.join(FILES_DIR, name.slice(6)), buf);
+            count++;
+          }
+        }
+        if (count) console.log(`[Gist] Restored ${count} files`);
+      }
+    } catch (e) {
+      console.error('[Gist] Init error:', e.message);
+    }
+  } else {
+    try {
+      const gist = await gistApi('POST', '', {
+        description: 'Tensai Server Data',
+        public: false,
+        files: { 'data.json': { content: JSON.stringify(loadData()) } }
+      });
+      if (gist.id) {
+        GIST_ID = gist.id;
+        console.log(`[Gist] Created gist: ${gist.id}`);
+        console.log(`[Gist] Set GIST_ID=${gist.id} in Render env vars for persistence`);
+      }
+    } catch (e) {
+      console.error('[Gist] Create error:', e.message);
+    }
+  }
+}
+
+// ── Gist debounced update ──
+let gistTimer = null;
+
+function gistSave(files) {
+  if (!GIST_TOKEN || !GIST_ID) return;
+  gistApi('PATCH', `/${GIST_ID}`, { files }).catch(e => console.error('[Gist] Save error:', e.message));
+}
+
+function gistScheduleData(data) {
+  if (!GIST_TOKEN || !GIST_ID) return;
+  if (gistTimer) clearTimeout(gistTimer);
+  gistTimer = setTimeout(() => {
+    gistTimer = null;
+    gistSave({ 'data.json': { content: JSON.stringify(data, null, 2) } });
+  }, 2000);
+}
+
+function gistUploadFile(name, base64Content) {
+  if (!GIST_TOKEN || !GIST_ID) return;
+  gistSave({ [`files/${name}`]: { content: base64Content } });
+}
+
+function gistDeleteFile(name) {
+  if (!GIST_TOKEN || !GIST_ID) return;
+  gistSave({ [`files/${name}`]: null });
+}
+
+// ── Data ──
 function loadData() {
   try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
   catch { return { users: [], keys: [], products: [], sessions: [], keyCounter: 1, productCounter: 1, userCounter: 1 }; }
@@ -23,6 +127,7 @@ function loadData() {
 
 function saveData(d) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(d, null, 2));
+  gistScheduleData(d);
 }
 
 function hashPw(pw, salt) {
@@ -314,9 +419,12 @@ app.get('/api/files', (req, res) => {
   const { name, adminToken } = req.query;
   if (name) return serveFile(name, req, res);
 
-  const files = fs.readdirSync(FILES_DIR).filter(f => {
-    try { return fs.statSync(path.join(FILES_DIR, f)).isFile(); } catch { return false; }
-  });
+  let files = [];
+  try {
+    files = fs.readdirSync(FILES_DIR).filter(f => {
+      try { return fs.statSync(path.join(FILES_DIR, f)).isFile(); } catch { return false; }
+    });
+  } catch {}
   const result = files.map(f => {
     const fp = path.join(FILES_DIR, f);
     return {
@@ -338,6 +446,7 @@ app.post('/api/files', (req, res) => {
   try {
     const buffer = Buffer.from(content, 'base64');
     fs.writeFileSync(path.join(FILES_DIR, safeName), buffer);
+    gistUploadFile(safeName, content);
     res.json({ success: true, name: safeName, size: buffer.length, url: `/cdn/${encodeURIComponent(safeName)}` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -347,8 +456,9 @@ app.delete('/api/files', (req, res) => {
   if (adminToken !== ADMIN_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
   if (!name) return res.status(400).json({ error: 'Missing name' });
   const fp = path.join(FILES_DIR, path.basename(name));
-  try { if (fs.existsSync(fp)) fs.unlinkSync(fp); res.json({ success: true }); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try { if (fs.existsSync(fp)) fs.unlinkSync(fp); } catch (e) { return res.status(500).json({ error: e.message }); }
+  gistDeleteFile(path.basename(name));
+  res.json({ success: true });
 });
 
 function serveFile(name, req, res) {
@@ -370,8 +480,11 @@ app.all('*', (req, res) => {
   res.status(200).end();
 });
 
-if (!fs.existsSync(FILES_DIR)) fs.mkdirSync(FILES_DIR, { recursive: true });
-
-app.listen(PORT, () => {
-  console.log(`Tensai server running on port ${PORT}`);
+// ── Start ──
+initFromGist().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Tensai server running on port ${PORT}`);
+    if (!GIST_TOKEN) console.log('[Gist] Not configured — set GIST_TOKEN env var for persistence');
+    else if (GIST_ID) console.log(`[Gist] Using gist ${GIST_ID}`);
+  });
 });
