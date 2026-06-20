@@ -2,6 +2,7 @@ services:
   - type: web
     name: tensai
     env: node
+    rootDir: Tensai
     buildCommand: npm install
     startCommand: node server.js
     autoDeploy: true
