@@ -834,18 +834,16 @@ async function deleteKey(id){
 }
 
 function exportRaw(claimed){
-  const at=localStorage.getItem(ADMIN_KEY);
-  const products=Array.from(document.querySelectorAll('.chip[data-group="product"].active:not([data-value=""])')).map(c=>c.dataset.value).join(',');
-  const durations=Array.from(document.querySelectorAll('.chip[data-group="duration"].active:not([data-value=""])')).map(c=>c.dataset.value).join(',');
-  const search=document.getElementById('filterSearch').value.trim();
-  const p=new URLSearchParams({adminToken:at,claimed});
-  if(products)p.set('product',products);
-  if(durations)p.set('duration',durations);
-  if(search)p.set('search',search);
+  const checked=Array.from(document.querySelectorAll('.key-cb:checked'));
+  if(!checked.length)return;
+  const text=checked.map(cb=>cb.closest('tr').querySelector('.key-code').textContent.trim()).join('\n');
+  const blob=new Blob([text],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=`${API}/keys/raw?${p}`;
-  a.download=`keys_${claimed==='true'?'claimed':'unclaimed'}.txt`;
+  a.href=url;
+  a.download=`keys_${claimed==='true'?'claimed':'unclaimed'}_${checked.length}.txt`;
   document.body.appendChild(a);a.click();a.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function unlinkHwid(keyId){
