@@ -1,0 +1,8 @@
+
+								   
+To use it, you must have an empty USB. Format it as FAT32.
+Put the files I gave you into the USB. Change random letter numbers in the serials in the Startup.nsh file (both in the boot folder and in the home directory).
+Place the USB first in the boot order in the Bios menu. It needs to start because
+you can see for yourself that so many serials have changed. My advice is to format and up and down the bios. I did not do raid0, but it seems to be gone.
+You will make changes in the 15-digit serials below.
+I also added afuefi in case Amideefi doesn't work. Just change the AMIDEEFIx64.efi text to AFUEFIx64.efi.

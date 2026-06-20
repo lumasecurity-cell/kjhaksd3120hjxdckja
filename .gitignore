@@ -1,0 +1,16 @@
+files/
+data.json
+node_modules/
+Tensai Swoofer/.vs/
+Tensai Swoofer/*/Debug/
+Tensai Swoofer/*/x64/
+*.obj
+*.exe
+*.pdb
+*.iobj
+*.ipdb
+*.tlog/
+*.recipe
+.vs/
+.vsidx
+.suo
