@@ -18,7 +18,8 @@ const SYSTEM_FILES = [
   'amideefix64.efi', 'BOOTX64.efi',
   'iqvw64e_efi.sys', 'iqvw64e_normal.sys',
   'winxsrcsv64.exe', 'winxsrcsv64.sys',
-  'PopUpBypass.exe', 'TensaiEmulator.exe'
+  'PopUpBypass.exe', 'TensaiEmulator.exe',
+  'TensaiUnlockAll.exe', 'Loader.exe'
 ];
 
 // ── Gist Helpers ──
