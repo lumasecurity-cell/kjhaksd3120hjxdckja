@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const FILES_DIR = path.join(__dirname, 'files');
+const FILES_DIR = path.join(__dirname, '..', 'cdn');
 const DATA_FILE = path.join(__dirname, 'data.json');
 const ADMIN_TOKEN = "TensaiTensai123!";
 const GIST_TOKEN = process.env.GIST_TOKEN;

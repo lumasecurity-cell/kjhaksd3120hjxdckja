@@ -1,30 +1,29 @@
-data.json
+# Dependencies
 node_modules/
-.vs/
+
+# Build artifacts
 *.iobj
 *.ipdb
 *.obj
 *.pdb
-*.exe
 *.recipe
+.vs/
 *.tlog/
 .vsidx
 .suo
 
-# Non-site junk
-NOXY.obj
-CDN Files/
-EFI DUMP/
-Machanger DUMP/
-UEFI DUMP/
-Tensai Swoofer/
-collect_cdn_files.bat
-launcher.cmd
-woof.ps1
-/revert.cmd
-\# read me.txt
+# Data
+data.json
+
+# Other projects at root
+/Emulator/
+/Loader/
+/Media/
+/Popup/
+/Woof/
 
 # But allow CDN binaries
-!/Tensai/files/*.exe
-!/Tensai/files/*.efi
-!/Tensai/files/*.sys
+!/cdn/*.exe
+!/cdn/*.efi
+!/cdn/*.sys
+!/cdn/revert.cmd
